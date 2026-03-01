@@ -3,8 +3,6 @@ require "net/http"
 require "uri"
 
 class WeatherClient < BaseService
-  LookupError = Class.new(StandardError)
-
   def call(latitude:, longitude:)
     current_weather(latitude: latitude, longitude: longitude)
   end

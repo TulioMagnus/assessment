@@ -7,13 +7,11 @@ class WeatherFetcher < BaseService
     end
 
     client_result = ::WeatherClient.call(latitude: latitude, longitude: longitude)
-    raise ::WeatherClient::LookupError, client_result.error unless client_result.success?
+    return failure(error: client_result.error) unless client_result.success?
 
     weather_data = client_result.data
     Rails.cache.write(cache_storage_key, weather_data, expires_in: 30.minutes)
 
     success(data: { weather: weather_data, from_cache: false })
-  rescue ::WeatherClient::LookupError => e
-    failure(error: e.message)
   end
 end
