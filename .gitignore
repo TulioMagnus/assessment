@@ -29,6 +29,7 @@
 !/tmp/storage/.keep
 
 /public/assets
+.rspec_status
 
 # Ignore master key for decrypting credentials and more.
 /config/master.key
