@@ -7,6 +7,7 @@
     Address: <%= @address.presence || "n/a" %><br>
     Coordinates: <%= @resolved_lat %>, <%= @resolved_lon %><br>
     Resolved by: <%= @resolution_source.to_s.humanize %><br>
+    Weather source: <%= @weather.present? ? (@weather_from_cache ? "Cache" : "Live fetch") : "n/a" %><br>
     Cache key: <code><%= @cache_key %></code>
   </p>
 
@@ -15,11 +16,21 @@
     <% if @weather.present? %>
       <ul>
         <li>Observed at: <%= @weather[:observed_at] %></li>
+        <li>Condition: <%= @weather[:weather_label] %> (code <%= @weather[:weather_code] %>)</li>
+        <li>Daylight: <%= @weather[:is_day] ? "Day" : "Night" %></li>
         <li>Temperature: <%= @weather[:temperature] %> <%= @weather[:temperature_unit] %></li>
         <li>Feels like: <%= @weather[:feels_like] %> <%= @weather[:feels_like_unit] %></li>
+        <li>Humidity: <%= @weather[:humidity] %> <%= @weather[:humidity_unit] %></li>
+        <li>Cloud cover: <%= @weather[:cloud_cover] %> <%= @weather[:cloud_cover_unit] %></li>
+        <li>Pressure: <%= @weather[:pressure] %> <%= @weather[:pressure_unit] %></li>
         <li>Precipitation: <%= @weather[:precipitation] %> <%= @weather[:precipitation_unit] %></li>
+        <li>Rain: <%= @weather[:rain] %> <%= @weather[:rain_unit] %></li>
+        <li>Showers: <%= @weather[:showers] %> <%= @weather[:showers_unit] %></li>
+        <li>Snowfall: <%= @weather[:snowfall] %> <%= @weather[:snowfall_unit] %></li>
         <li>Wind speed: <%= @weather[:wind_speed] %> <%= @weather[:wind_speed_unit] %></li>
-        <li>Weather code: <%= @weather[:weather_code] %></li>
+        <li>Wind direction: <%= @weather[:wind_direction] %> <%= @weather[:wind_direction_unit] %></li>
+        <li>Wind gusts: <%= @weather[:wind_gusts] %> <%= @weather[:wind_gusts_unit] %></li>
+        <li>UV index: <%= @weather[:uv_index] %></li>
       </ul>
     <% elsif @weather_error.present? %>
       <p style="color: #b42318;"><%= @weather_error %></p>

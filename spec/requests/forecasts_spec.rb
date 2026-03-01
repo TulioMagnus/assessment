@@ -22,7 +22,7 @@ RSpec.describe "Forecasts", type: :request do
   before do
     allow(LocationResolver).to receive(:new).and_return(resolver)
     allow(WeatherFetcher).to receive(:call).and_return(
-      BaseService::Result.new(data: weather_data)
+      BaseService::Result.new(data: { weather: weather_data, from_cache: false })
     )
   end
 
@@ -76,6 +76,7 @@ RSpec.describe "Forecasts", type: :request do
       expect(response.body).to include("Country: US")
       expect(response.body).to include("Postal/ZIP: 33101")
       expect(response.body).to include("Resolved by: Postal code")
+      expect(response.body).to include("Weather source: Live fetch")
       expect(response.body).to include("forecast:US:postal:33101")
       expect(response.body).to include("Temperature: 27.1 °C")
       expect(WeatherFetcher).to have_received(:call).with(
@@ -99,7 +100,27 @@ RSpec.describe "Forecasts", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("Resolved by: Address")
+      expect(response.body).to include("Weather source: Live fetch")
       expect(response.body).to include("forecast:GB:grid:51.5:-0.13")
+    end
+
+    it "shows cache indicator when weather comes from cache" do
+      allow(resolver).to receive(:resolve).and_return(
+        LocationResolver::Resolution.new(
+          lat: "25.7617",
+          lon: "-80.1918",
+          postal_code: "33101",
+          source: :postal_code
+        )
+      )
+      allow(WeatherFetcher).to receive(:call).and_return(
+        BaseService::Result.new(data: { weather: weather_data, from_cache: true })
+      )
+
+      get forecast_path, params: { country: "US", postal_code: "33101", address: "" }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("Weather source: Cache")
     end
 
     it "shows weather error when weather service fails" do

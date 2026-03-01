@@ -29,7 +29,7 @@ class ForecastsController < ApplicationController
 
     @resolved_lat = resolution.lat
     @resolved_lon = resolution.lon
-    @resolved_postal_code = normalize_postal_code(@postal_code.presence || resolution.postal_code)
+    @resolved_postal_code = resolved_postal_code_for(resolution)
     @cache_key = ::ForecastCacheKeyBuilder.call(
       country: @country,
       postal_code: @resolved_postal_code,
@@ -42,7 +42,13 @@ class ForecastsController < ApplicationController
       latitude: @resolved_lat,
       longitude: @resolved_lon
     )
-    @weather = weather_result.data
+    if weather_result.data.is_a?(Hash) && weather_result.data.key?(:weather)
+      @weather = weather_result.data[:weather]
+      @weather_from_cache = weather_result.data[:from_cache]
+    else
+      @weather = weather_result.data
+      @weather_from_cache = nil
+    end
     @weather_error = weather_result.error
   end
 
@@ -61,6 +67,16 @@ class ForecastsController < ApplicationController
 
   def normalize_postal_code(value)
     value.to_s.strip.upcase.gsub(/\s+/, " ").presence
+  end
+
+  def resolved_postal_code_for(resolution)
+    code = if resolution.postal_code.present?
+      resolution.postal_code
+    elsif resolution.source.to_s == "postal_code"
+      @postal_code
+    end
+
+    normalize_postal_code(code)
   end
 
   def country_codes

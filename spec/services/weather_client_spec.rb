@@ -17,17 +17,37 @@ RSpec.describe WeatherClient do
         body: {
           current: {
             time: "2026-03-01T09:00",
+            is_day: 1,
             temperature_2m: 22.4,
             apparent_temperature: 23.0,
+            relative_humidity_2m: 61,
             precipitation: 0.0,
+            rain: 0.0,
+            showers: 0.0,
+            snowfall: 0.0,
+            cloud_cover: 18,
+            surface_pressure: 1013.2,
             weather_code: 1,
-            wind_speed_10m: 12.5
+            wind_speed_10m: 12.5,
+            wind_direction_10m: 185,
+            wind_gusts_10m: 18.0,
+            uv_index: 2.4
           },
           current_units: {
+            is_day: "",
             temperature_2m: "°C",
             apparent_temperature: "°C",
+            relative_humidity_2m: "%",
             precipitation: "mm",
-            wind_speed_10m: "km/h"
+            rain: "mm",
+            showers: "mm",
+            snowfall: "cm",
+            cloud_cover: "%",
+            surface_pressure: "hPa",
+            wind_speed_10m: "km/h",
+            wind_direction_10m: "°",
+            wind_gusts_10m: "km/h",
+            uv_index: ""
           }
         }.to_json
       )
@@ -39,6 +59,8 @@ RSpec.describe WeatherClient do
       expect(result.success?).to be(true)
       expect(result.data[:temperature]).to eq(22.4)
       expect(result.data[:temperature_unit]).to eq("°C")
+      expect(result.data[:humidity]).to eq(61)
+      expect(result.data[:weather_label]).to eq("Mainly clear")
     end
 
     it "returns failure when upstream responds with non-success status" do
