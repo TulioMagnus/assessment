@@ -22,3 +22,13 @@ Things you may want to cover:
 * Deployment instructions
 
 * ...
+
+## Environment variables (dotenv)
+
+This project uses `dotenv-rails` in development/test.
+
+1. Create your local env file:
+   ```bash
+   cp .env.example .env
+   ```
+2. Edit `.env` with your local values.
