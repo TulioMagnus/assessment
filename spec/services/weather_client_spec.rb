@@ -3,13 +3,8 @@
 require "rails_helper"
 
 RSpec.describe WeatherClient do
-  describe "#current_weather" do
-    let(:client) { described_class.new }
-    let(:fake_http) { instance_double(Net::HTTP) }
-
-    before do
-      allow(client).to receive(:http_client).and_return(fake_http)
-    end
+  describe "#call" do
+    let(:client) { described_class }
 
     it "returns parsed weather data on success" do
       fake_response = instance_double(
@@ -51,10 +46,10 @@ RSpec.describe WeatherClient do
           }
         }.to_json
       )
-      allow(fake_http).to receive(:request).and_return(fake_response)
+      allow(HttpGetClient).to receive(:call).and_return(fake_response)
       allow(fake_response).to receive(:is_a?).with(Net::HTTPSuccess).and_return(true)
 
-      result = client.current_weather(latitude: "40.7128", longitude: "-74.0060")
+      result = client.call(latitude: "40.7128", longitude: "-74.0060")
 
       expect(result.success?).to be(true)
       expect(result.data[:temperature]).to eq(22.4)
@@ -65,10 +60,10 @@ RSpec.describe WeatherClient do
 
     it "returns failure when upstream responds with non-success status" do
       fake_response = instance_double(Net::HTTPResponse, body: "oops", code: "500")
-      allow(fake_http).to receive(:request).and_return(fake_response)
+      allow(HttpGetClient).to receive(:call).and_return(fake_response)
       allow(fake_response).to receive(:is_a?).with(Net::HTTPSuccess).and_return(false)
 
-      result = client.current_weather(latitude: "40.7128", longitude: "-74.0060")
+      result = client.call(latitude: "40.7128", longitude: "-74.0060")
 
       expect(result.success?).to be(false)
       expect(result.error).to eq("Weather service returned 500.")
@@ -76,10 +71,10 @@ RSpec.describe WeatherClient do
 
     it "returns failure when body is empty" do
       fake_response = instance_double(Net::HTTPSuccess, body: "", code: "200")
-      allow(fake_http).to receive(:request).and_return(fake_response)
+      allow(HttpGetClient).to receive(:call).and_return(fake_response)
       allow(fake_response).to receive(:is_a?).with(Net::HTTPSuccess).and_return(true)
 
-      result = client.current_weather(latitude: "40.7128", longitude: "-74.0060")
+      result = client.call(latitude: "40.7128", longitude: "-74.0060")
 
       expect(result.success?).to be(false)
       expect(result.error).to eq("Weather service returned an empty response.")
@@ -87,10 +82,10 @@ RSpec.describe WeatherClient do
 
     it "returns failure when JSON is invalid" do
       fake_response = instance_double(Net::HTTPSuccess, body: "{", code: "200")
-      allow(fake_http).to receive(:request).and_return(fake_response)
+      allow(HttpGetClient).to receive(:call).and_return(fake_response)
       allow(fake_response).to receive(:is_a?).with(Net::HTTPSuccess).and_return(true)
 
-      result = client.current_weather(latitude: "40.7128", longitude: "-74.0060")
+      result = client.call(latitude: "40.7128", longitude: "-74.0060")
 
       expect(result.success?).to be(false)
       expect(result.error).to eq("Weather response could not be parsed.")
@@ -98,22 +93,29 @@ RSpec.describe WeatherClient do
 
     it "returns failure when current weather payload is missing" do
       fake_response = instance_double(Net::HTTPSuccess, body: { current: {}, current_units: {} }.to_json, code: "200")
-      allow(fake_http).to receive(:request).and_return(fake_response)
+      allow(HttpGetClient).to receive(:call).and_return(fake_response)
       allow(fake_response).to receive(:is_a?).with(Net::HTTPSuccess).and_return(true)
 
-      result = client.current_weather(latitude: "40.7128", longitude: "-74.0060")
+      result = client.call(latitude: "40.7128", longitude: "-74.0060")
 
       expect(result.success?).to be(false)
       expect(result.error).to eq("Weather data is unavailable for this location.")
     end
 
     it "returns failure when request times out" do
-      allow(fake_http).to receive(:request).and_raise(Net::ReadTimeout)
+      allow(HttpGetClient).to receive(:call).and_raise(Net::ReadTimeout)
 
-      result = client.current_weather(latitude: "40.7128", longitude: "-74.0060")
+      result = client.call(latitude: "40.7128", longitude: "-74.0060")
 
       expect(result.success?).to be(false)
       expect(result.error).to eq("Weather service is temporarily unavailable.")
+    end
+
+    it "returns failure when coordinates are missing" do
+      result = client.call(latitude: nil, longitude: "-74.0060")
+
+      expect(result.success?).to be(false)
+      expect(result.error).to eq("Weather coordinates are missing.")
     end
   end
 end

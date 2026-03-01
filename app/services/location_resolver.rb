@@ -33,7 +33,12 @@ class LocationResolver
 
   def geocode(query:, country_code:, source:)
     uri = build_uri(query: query, country_code: country_code)
-    response = http_client(uri).request(build_request(uri))
+    response = ::HttpGetClient.call(
+      uri: uri,
+      user_agent: ENV.fetch("NOMINATIM_USER_AGENT", "avenue-code-forecast/1.0"),
+      open_timeout: ENV.fetch("GEOCODER_OPEN_TIMEOUT", "5"),
+      read_timeout: ENV.fetch("GEOCODER_READ_TIMEOUT", "5")
+    )
     return if !response.is_a?(Net::HTTPSuccess) || response.body.blank?
 
     payload = JSON.parse(response.body)
@@ -62,20 +67,6 @@ class LocationResolver
       addressdetails: 1
     )
     uri
-  end
-
-  def build_request(uri)
-    request = Net::HTTP::Get.new(uri)
-    request["User-Agent"] = ENV.fetch("NOMINATIM_USER_AGENT", "avenue-code-forecast/1.0")
-    request
-  end
-
-  def http_client(uri)
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = uri.scheme == "https"
-    http.read_timeout = ENV.fetch("GEOCODER_READ_TIMEOUT", "5").to_i
-    http.open_timeout = ENV.fetch("GEOCODER_OPEN_TIMEOUT", "5").to_i
-    http
   end
 
   def failure(message)

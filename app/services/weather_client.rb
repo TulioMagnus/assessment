@@ -3,13 +3,27 @@ require "net/http"
 require "uri"
 
 class WeatherClient < BaseService
-  def call(latitude:, longitude:)
-    current_weather(latitude: latitude, longitude: longitude)
+  attr_reader :latitude, :longitude
+
+  def initialize(latitude: nil, longitude: nil)
+    @latitude = latitude
+    @longitude = longitude
   end
 
-  def current_weather(latitude:, longitude:)
+  def call
+    return failure(error: "Weather coordinates are missing.") if latitude.blank? || longitude.blank?
+
+    current_weather
+  end
+
+  def current_weather(latitude: @latitude, longitude: @longitude)
     uri = build_uri(latitude: latitude, longitude: longitude)
-    response = http_client(uri).request(build_request(uri))
+    response = ::HttpGetClient.call(
+      uri: uri,
+      user_agent: ENV.fetch("WEATHER_USER_AGENT", "avenue-code-forecast/1.0"),
+      open_timeout: ENV.fetch("WEATHER_OPEN_TIMEOUT", "5"),
+      read_timeout: ENV.fetch("WEATHER_READ_TIMEOUT", "5")
+    )
     return failure(error: "Weather service returned #{response.code}.") unless response.is_a?(Net::HTTPSuccess)
     return failure(error: "Weather service returned an empty response.") if response.body.blank?
 
@@ -96,19 +110,5 @@ class WeatherClient < BaseService
       96 => "Thunderstorm with slight hail",
       99 => "Thunderstorm with heavy hail"
     }.fetch(code.to_i, "Unknown")
-  end
-
-  def build_request(uri)
-    request = Net::HTTP::Get.new(uri)
-    request["User-Agent"] = ENV.fetch("WEATHER_USER_AGENT", "avenue-code-forecast/1.0")
-    request
-  end
-
-  def http_client(uri)
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = uri.scheme == "https"
-    http.read_timeout = ENV.fetch("WEATHER_READ_TIMEOUT", "5").to_i
-    http.open_timeout = ENV.fetch("WEATHER_OPEN_TIMEOUT", "5").to_i
-    http
   end
 end
