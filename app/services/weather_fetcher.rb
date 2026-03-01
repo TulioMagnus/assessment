@@ -1,5 +1,13 @@
 class WeatherFetcher < BaseService
-  def call(cache_key:, latitude:, longitude:)
+  attr_reader :cache_key, :latitude, :longitude
+
+  def initialize(cache_key:, latitude:, longitude:)
+    @cache_key = cache_key
+    @latitude = latitude
+    @longitude = longitude
+  end
+
+  def call
     cache_storage_key = "weather:#{cache_key}"
     cached_weather = Rails.cache.read(cache_storage_key)
     unless cached_weather.nil?

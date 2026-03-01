@@ -1,6 +1,6 @@
 class BaseService
   def self.call(*args, **kwargs, &block)
-    new.call(*args, **kwargs, &block)
+    new(*args, **kwargs, &block).call
   end
 
   Result = Struct.new(:data, :error, keyword_init: true) do

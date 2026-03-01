@@ -3,7 +3,6 @@
 require "rails_helper"
 
 RSpec.describe "Forecasts", type: :request do
-  let(:resolver) { instance_double(LocationResolver) }
   let(:weather_data) do
     {
       observed_at: "2026-03-01T09:00",
@@ -18,11 +17,22 @@ RSpec.describe "Forecasts", type: :request do
       weather_code: 1
     }
   end
+  let(:lookup_data) do
+    {
+      resolved_lat: "25.7617",
+      resolved_lon: "-80.1918",
+      resolved_postal_code: "33101",
+      resolution_source: :postal_code,
+      cache_key: "forecast:US:postal:33101",
+      weather: weather_data,
+      weather_from_cache: false,
+      weather_error: nil
+    }
+  end
 
   before do
-    allow(LocationResolver).to receive(:new).and_return(resolver)
-    allow(WeatherFetcher).to receive(:call).and_return(
-      BaseService::Result.new(data: { weather: weather_data, from_cache: false })
+    allow(ForecastLookup).to receive(:call).and_return(
+      BaseService::Result.new(data: lookup_data)
     )
   end
 
@@ -43,6 +53,7 @@ RSpec.describe "Forecasts", type: :request do
 
       expect(response).to have_http_status(:unprocessable_entity)
       expect(response.body).to include("Country is required.")
+      expect(ForecastLookup).not_to have_received(:call)
     end
 
     it "validates that postal code or address is present" do
@@ -50,6 +61,7 @@ RSpec.describe "Forecasts", type: :request do
 
       expect(response).to have_http_status(:unprocessable_entity)
       expect(response.body).to include("Provide postal code or address.")
+      expect(ForecastLookup).not_to have_received(:call)
     end
 
     it "validates unsupported country iso code" do
@@ -57,42 +69,41 @@ RSpec.describe "Forecasts", type: :request do
 
       expect(response).to have_http_status(:unprocessable_entity)
       expect(response.body).to include("Country must be a supported ISO code.")
+      expect(ForecastLookup).not_to have_received(:call)
     end
 
     it "resolves using postal code first when both are provided" do
-      allow(resolver).to receive(:resolve).and_return(
-        LocationResolver::Resolution.new(
-          lat: "25.7617",
-          lon: "-80.1918",
-          postal_code: "33101",
-          source: :postal_code
-        )
-      )
+      captured_input = nil
+      allow(ForecastLookup).to receive(:call) do |input:|
+        captured_input = input
+        BaseService::Result.new(data: lookup_data)
+      end
 
       get forecast_path, params: { country: "us", postal_code: "33101", address: "Miami, FL" }
 
       expect(response).to have_http_status(:ok)
-      expect(resolver).to have_received(:resolve).with(country: "US", postal_code: "33101", address: "Miami, FL")
+      expect(captured_input).to be_a(ForecastInput)
+      expect(captured_input.country).to eq("US")
+      expect(captured_input.postal_code).to eq("33101")
+      expect(captured_input.address).to eq("Miami, FL")
       expect(response.body).to include("Country: US")
       expect(response.body).to include("Postal/ZIP: 33101")
       expect(response.body).to include("Resolved by: Postal code")
       expect(response.body).to include("Weather source: Live fetch")
       expect(response.body).to include("forecast:US:postal:33101")
       expect(response.body).to include("Temperature: 27.1 °C")
-      expect(WeatherFetcher).to have_received(:call).with(
-        cache_key: "forecast:US:postal:33101",
-        latitude: "25.7617",
-        longitude: "-80.1918"
-      )
     end
 
     it "falls back to address if postal geocoding fails and address is present" do
-      allow(resolver).to receive(:resolve).and_return(
-        LocationResolver::Resolution.new(
-          lat: "51.5034",
-          lon: "-0.1276",
-          postal_code: nil,
-          source: :address
+      allow(ForecastLookup).to receive(:call).and_return(
+        BaseService::Result.new(
+          data: lookup_data.merge(
+            resolved_lat: "51.5034",
+            resolved_lon: "-0.1276",
+            resolved_postal_code: nil,
+            resolution_source: :address,
+            cache_key: "forecast:GB:grid:51.5:-0.13"
+          )
         )
       )
 
@@ -105,16 +116,8 @@ RSpec.describe "Forecasts", type: :request do
     end
 
     it "shows cache indicator when weather comes from cache" do
-      allow(resolver).to receive(:resolve).and_return(
-        LocationResolver::Resolution.new(
-          lat: "25.7617",
-          lon: "-80.1918",
-          postal_code: "33101",
-          source: :postal_code
-        )
-      )
-      allow(WeatherFetcher).to receive(:call).and_return(
-        BaseService::Result.new(data: { weather: weather_data, from_cache: true })
+      allow(ForecastLookup).to receive(:call).and_return(
+        BaseService::Result.new(data: lookup_data.merge(weather_from_cache: true))
       )
 
       get forecast_path, params: { country: "US", postal_code: "33101", address: "" }
@@ -124,16 +127,18 @@ RSpec.describe "Forecasts", type: :request do
     end
 
     it "shows weather error when weather service fails" do
-      allow(resolver).to receive(:resolve).and_return(
-        LocationResolver::Resolution.new(
-          lat: "40.7128",
-          lon: "-74.0060",
-          postal_code: "10007",
-          source: :postal_code
+      allow(ForecastLookup).to receive(:call).and_return(
+        BaseService::Result.new(
+          data: lookup_data.merge(
+            resolved_lat: "40.7128",
+            resolved_lon: "-74.0060",
+            resolved_postal_code: "10007",
+            cache_key: "forecast:US:postal:10007",
+            weather: nil,
+            weather_from_cache: nil,
+            weather_error: "Weather service is temporarily unavailable."
+          )
         )
-      )
-      allow(WeatherFetcher).to receive(:call).and_return(
-        BaseService::Result.new(error: "Weather service is temporarily unavailable.")
       )
 
       get forecast_path, params: { country: "US", postal_code: "10007", address: "" }
@@ -143,8 +148,8 @@ RSpec.describe "Forecasts", type: :request do
     end
 
     it "shows postal-not-found error when postal is provided and no address fallback exists" do
-      allow(resolver).to receive(:resolve).and_return(
-        LocationResolver::Resolution.new(error: "Postal code not found for selected country.")
+      allow(ForecastLookup).to receive(:call).and_return(
+        BaseService::Result.new(error: "Postal code not found for selected country.")
       )
 
       get forecast_path, params: { country: "BR", postal_code: "00000", address: "" }

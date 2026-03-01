@@ -1,5 +1,14 @@
 class ForecastCacheKeyBuilder < BaseService
-  def call(country:, postal_code:, lat:, lon:)
+  attr_reader :country, :postal_code, :lat, :lon
+
+  def initialize(country:, postal_code:, lat:, lon:)
+    @country = country
+    @postal_code = postal_code
+    @lat = lat
+    @lon = lon
+  end
+
+  def call
     if postal_code.present?
       normalized = postal_code.to_s.delete(" ").upcase
       return "forecast:#{country}:postal:#{normalized}"
