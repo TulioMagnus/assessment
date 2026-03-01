@@ -4,9 +4,26 @@ require "rails_helper"
 
 RSpec.describe "Forecasts", type: :request do
   let(:resolver) { instance_double(LocationResolver) }
+  let(:weather_data) do
+    {
+      observed_at: "2026-03-01T09:00",
+      temperature: 27.1,
+      temperature_unit: "°C",
+      feels_like: 29.0,
+      feels_like_unit: "°C",
+      precipitation: 0.0,
+      precipitation_unit: "mm",
+      wind_speed: 10.2,
+      wind_speed_unit: "km/h",
+      weather_code: 1
+    }
+  end
 
   before do
     allow(LocationResolver).to receive(:new).and_return(resolver)
+    allow(WeatherFetcher).to receive(:call).and_return(
+      WeatherFetcher::Result.new(data: weather_data)
+    )
   end
 
   describe "GET /forecasts/new" do
@@ -60,6 +77,12 @@ RSpec.describe "Forecasts", type: :request do
       expect(response.body).to include("Postal/ZIP: 33101")
       expect(response.body).to include("Resolved by: Postal code")
       expect(response.body).to include("forecast:US:postal:33101")
+      expect(response.body).to include("Temperature: 27.1 °C")
+      expect(WeatherFetcher).to have_received(:call).with(
+        cache_key: "forecast:US:postal:33101",
+        latitude: "25.7617",
+        longitude: "-80.1918"
+      )
     end
 
     it "falls back to address if postal geocoding fails and address is present" do
@@ -77,6 +100,25 @@ RSpec.describe "Forecasts", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("Resolved by: Address")
       expect(response.body).to include("forecast:GB:grid:51.5:-0.13")
+    end
+
+    it "shows weather error when weather service fails" do
+      allow(resolver).to receive(:resolve).and_return(
+        LocationResolver::Resolution.new(
+          lat: "40.7128",
+          lon: "-74.0060",
+          postal_code: "10007",
+          source: :postal_code
+        )
+      )
+      allow(WeatherFetcher).to receive(:call).and_return(
+        WeatherFetcher::Result.new(error: "Weather service is temporarily unavailable.")
+      )
+
+      get forecast_path, params: { country: "US", postal_code: "10007", address: "" }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("Weather service is temporarily unavailable.")
     end
 
     it "shows postal-not-found error when postal is provided and no address fallback exists" do

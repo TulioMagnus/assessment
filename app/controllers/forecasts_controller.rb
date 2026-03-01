@@ -1,6 +1,3 @@
-require Rails.root.join("app/services/location_resolver")
-require Rails.root.join("app/helpers/country_iso_codes")
-
 class ForecastsController < ApplicationController
   helper_method :country_codes
 
@@ -33,25 +30,32 @@ class ForecastsController < ApplicationController
     @resolved_lat = resolution.lat
     @resolved_lon = resolution.lon
     @resolved_postal_code = normalize_postal_code(@postal_code.presence || resolution.postal_code)
-    @cache_key = build_cache_key(
+    @cache_key = ::ForecastCacheKeyBuilder.call(
       country: @country,
       postal_code: @resolved_postal_code,
       lat: @resolved_lat,
       lon: @resolved_lon
     )
     @resolution_source = resolution.source
+    weather_result = ::WeatherFetcher.call(
+      cache_key: @cache_key,
+      latitude: @resolved_lat,
+      longitude: @resolved_lon
+    )
+    @weather = weather_result.data
+    @weather_error = weather_result.error
   end
 
   private
 
   def forecast_params
-    params.permit(:country, :postal_code, :address)
+    params.permit(:country, :postal_code, :address, :commit)
   end
 
   def validate_inputs
     return "Country is required." if @country.blank?
     return "Country must be a 2-letter ISO code." unless @country.match?(/\A[A-Z]{2}\z/)
-    return "Country must be a supported ISO code." unless CountryIsoCodes.valid?(@country)
+    return "Country must be a supported ISO code." unless ::CountryIsoCodes.valid?(@country)
     "Provide postal code or address." if @postal_code.blank? && @address.blank?
   end
 
@@ -59,18 +63,7 @@ class ForecastsController < ApplicationController
     value.to_s.strip.upcase.gsub(/\s+/, " ").presence
   end
 
-  def build_cache_key(country:, postal_code:, lat:, lon:)
-    if postal_code.present?
-      normalized = postal_code.delete(" ").upcase
-      return "forecast:#{country}:postal:#{normalized}"
-    end
-
-    rounded_lat = lat.to_f.round(2)
-    rounded_lon = lon.to_f.round(2)
-    "forecast:#{country}:grid:#{rounded_lat}:#{rounded_lon}"
-  end
-
   def country_codes
-    CountryIsoCodes.all
+    ::CountryIsoCodes.all
   end
 end
