@@ -2,7 +2,9 @@
   <h1>Forecast Results</h1>
 
   <p>
-    Address: <%= @address %>
+    Postal/ZIP: <%= @resolved_postal_code.presence || "n/a" %><br>
+    Coordinates: <%= @resolved_lat %>, <%= @resolved_lon %><br>
+    Cache key: <code><%= @cache_key %></code>
   </p>
 
   <section id="forecast-results">

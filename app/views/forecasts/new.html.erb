@@ -7,8 +7,24 @@
 
   <%= form_with url: forecast_path, method: :get, local: true do |form| %>
     <div>
+      <%= form.label :country, "Country (ISO code)" %><br>
+      <%= form.text_field :country, value: @country, required: true, maxlength: 2, pattern: "[A-Za-z]{2}", list: "country-codes", placeholder: "US", size: 12, style: "width: 220px; text-transform: uppercase;" %>
+      <datalist id="country-codes">
+        <% country_codes.each do |code| %>
+          <option value="<%= code %>"></option>
+        <% end %>
+      </datalist>
+    </div>
+
+    <div style="margin-top: 12px;">
+      <%= form.label :postal_code, "Postal/ZIP code (optional)" %><br>
+      <%= form.text_field :postal_code, value: @postal_code, placeholder: "33101" %>
+    </div>
+
+    <div style="margin-top: 12px;">
       <%= form.label :address, "Address" %><br>
-      <%= form.text_field :address, value: @address, required: true, placeholder: "123 Main St, Miami, FL" %>
+      <%= form.text_field :address, value: @address, placeholder: "123 Main St, Miami, FL" %>
+      <p style="margin: 6px 0 0; color: #444;">Provide postal code for fastest, most accurate results.</p>
     </div>
 
     <div style="margin-top: 12px;">
