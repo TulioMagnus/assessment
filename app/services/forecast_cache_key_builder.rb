@@ -1,5 +1,5 @@
-class ForecastCacheKeyBuilder
-  def self.call(country:, postal_code:, lat:, lon:)
+class ForecastCacheKeyBuilder < BaseService
+  def call(country:, postal_code:, lat:, lon:)
     if postal_code.present?
       normalized = postal_code.to_s.delete(" ").upcase
       return "forecast:#{country}:postal:#{normalized}"

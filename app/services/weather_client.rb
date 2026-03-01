@@ -2,27 +2,25 @@ require "json"
 require "net/http"
 require "uri"
 
-class WeatherClient
+class WeatherClient < BaseService
   LookupError = Class.new(StandardError)
 
-  Result = Struct.new(:data, :error, keyword_init: true) do
-    def success?
-      error.blank? && data.present?
-    end
+  def call(latitude:, longitude:)
+    current_weather(latitude: latitude, longitude: longitude)
   end
 
   def current_weather(latitude:, longitude:)
     uri = build_uri(latitude: latitude, longitude: longitude)
     response = http_client(uri).request(build_request(uri))
-    return Result.new(error: "Weather service returned #{response.code}.") unless response.is_a?(Net::HTTPSuccess)
-    return Result.new(error: "Weather service returned an empty response.") if response.body.blank?
+    return failure(error: "Weather service returned #{response.code}.") unless response.is_a?(Net::HTTPSuccess)
+    return failure(error: "Weather service returned an empty response.") if response.body.blank?
 
     payload = JSON.parse(response.body)
     current = payload["current"] || {}
     units = payload["current_units"] || {}
-    return Result.new(error: "Weather data is unavailable for this location.") if current.blank?
+    return failure(error: "Weather data is unavailable for this location.") if current.blank?
 
-    Result.new(
+    success(
       data: {
         observed_at: current["time"],
         temperature: current["temperature_2m"],
@@ -37,9 +35,9 @@ class WeatherClient
       }
     )
   rescue JSON::ParserError
-    Result.new(error: "Weather response could not be parsed.")
+    failure(error: "Weather response could not be parsed.")
   rescue SocketError, Timeout::Error, Errno::ECONNREFUSED, Net::ReadTimeout, Net::OpenTimeout
-    Result.new(error: "Weather service is temporarily unavailable.")
+    failure(error: "Weather service is temporarily unavailable.")
   end
 
   private

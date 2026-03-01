@@ -22,7 +22,7 @@ RSpec.describe "Forecasts", type: :request do
   before do
     allow(LocationResolver).to receive(:new).and_return(resolver)
     allow(WeatherFetcher).to receive(:call).and_return(
-      WeatherFetcher::Result.new(data: weather_data)
+      BaseService::Result.new(data: weather_data)
     )
   end
 
@@ -112,7 +112,7 @@ RSpec.describe "Forecasts", type: :request do
         )
       )
       allow(WeatherFetcher).to receive(:call).and_return(
-        WeatherFetcher::Result.new(error: "Weather service is temporarily unavailable.")
+        BaseService::Result.new(error: "Weather service is temporarily unavailable.")
       )
 
       get forecast_path, params: { country: "US", postal_code: "10007", address: "" }

@@ -3,14 +3,11 @@
 require "rails_helper"
 
 RSpec.describe WeatherFetcher do
-  let(:weather_client) { instance_double(WeatherClient) }
-
   describe ".call" do
     it "returns weather data when client succeeds" do
       data = { temperature: 20.0, temperature_unit: "°C" }
-      allow(WeatherClient).to receive(:new).and_return(weather_client)
-      allow(weather_client).to receive(:current_weather).and_return(
-        WeatherClient::Result.new(data: data)
+      allow(WeatherClient).to receive(:call).and_return(
+        BaseService::Result.new(data: data)
       )
 
       expect(Rails.cache).to receive(:fetch)
@@ -24,9 +21,8 @@ RSpec.describe WeatherFetcher do
     end
 
     it "returns error when client fails" do
-      allow(WeatherClient).to receive(:new).and_return(weather_client)
-      allow(weather_client).to receive(:current_weather).and_return(
-        WeatherClient::Result.new(error: "Weather service is temporarily unavailable.")
+      allow(WeatherClient).to receive(:call).and_return(
+        BaseService::Result.new(error: "Weather service is temporarily unavailable.")
       )
       allow(Rails.cache).to receive(:fetch).and_yield
 
