@@ -67,10 +67,6 @@ Then fill in `.env` values for geocoding/weather settings.
 From the project root:
 
 ```bash
-start-server:
-```
-
-```bash
 bin/rails server
 ```
 
