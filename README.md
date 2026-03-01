@@ -58,9 +58,16 @@ Then fill in `.env` values for geocoding/weather settings.
 
 ### Prerequisites
 
-- Ruby `3.2.2` (see `.ruby-version`)
+- Ruby `4.0.1` (latest stable, released on January 13, 2026; see `.ruby-version`)
 - Bundler
 - SQLite3
+
+If you're using `rbenv`, install and activate it with:
+
+```bash
+rbenv install 4.0.1
+rbenv local 4.0.1
+```
 
 ### Quick start
 
